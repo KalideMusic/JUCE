@@ -28,9 +28,18 @@ namespace juce
 namespace dsp
 {
 
+    enum class ENGINE_TYPE {
+        FALLBACK,
+        APPLE_VDSP,
+        FFTW,
+        MKL,
+        IPP
+    };
+
 struct FFT::Instance
 {
     virtual ~Instance() = default;
+    virtual int getEngineId() const noexcept = 0;
     virtual void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept = 0;
     virtual void performRealOnlyForwardTransform (float*, bool) const noexcept = 0;
     virtual void performRealOnlyInverseTransform (float*) const noexcept = 0;
@@ -95,6 +104,10 @@ struct FFTFallback  : public FFT::Instance
         configInverse.reset (new FFTConfig (1 << order, true));
 
         size = 1 << order;
+    }
+
+    int getEngineId() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::FALLBACK);
     }
 
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
@@ -459,6 +472,10 @@ struct AppleFFT  : public FFT::Instance
         }
     }
 
+    int getEngineId() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::APPLE_VDSP);
+    }
+
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
     {
         auto size = (1 << order);
@@ -672,6 +689,10 @@ struct FFTWImpl  : public FFT::Instance
         fftw.destroy_fftw (c2r);
     }
 
+    int getEngineId() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::FFTW);
+    }
+
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
     {
         if (inverse)
@@ -778,6 +799,10 @@ struct IntelFFT  : public FFT::Instance
         DftiFreeDescriptor (&c2r);
     }
 
+    int getEngineId() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::MKL);
+    }
+
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
     {
         if (inverse)
@@ -833,6 +858,10 @@ public:
             return new IntelPerformancePrimitivesFFT (std::move (complexContext), std::move (realContext), order);
 
         return {};
+    }
+
+    int getEngineId() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::IPP);
     }
 
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
@@ -962,6 +991,10 @@ FFT::FFT (FFT&&) noexcept = default;
 FFT& FFT::operator= (FFT&&) noexcept = default;
 
 FFT::~FFT() = default;
+
+int FFT::getEngineId() const noexcept {
+    return engine->getEngineId();
+}
 
 void FFT::perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept
 {

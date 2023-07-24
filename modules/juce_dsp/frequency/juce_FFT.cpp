@@ -980,6 +980,7 @@ FFT::EngineImpl<IntelPerformancePrimitivesFFT> intelPerformancePrimitivesFFT;
 #endif
 
 #if JUCE_USE_PFFFT
+#include <pffft.h>
 class PrettyFastFFT : public FFT::Instance
 {
 public:
@@ -999,7 +1000,7 @@ public:
         return new PrettyFastFFT (order);
     }
 
-    int getEngineID() override {
+    int getEngineID() const noexcept override {
         return static_cast<int>(ENGINE_TYPE::PFFFT);
     }
 

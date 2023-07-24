@@ -992,7 +992,7 @@ FFT& FFT::operator= (FFT&&) noexcept = default;
 
 FFT::~FFT() = default;
 
-int FFT::getEngineId() const noexcept {
+int FFT::getEngineID() {
     return engine->getEngineId();
 }
 

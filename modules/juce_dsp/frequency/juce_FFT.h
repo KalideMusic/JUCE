@@ -59,7 +59,7 @@ public:
     /** Destructor. */
     ~FFT();
 
-    int getEngineID() const noexcept;
+    int getEngineID();
 
     //==============================================================================
     /** Performs an out-of-place FFT, either forward or inverse.

@@ -40,7 +40,7 @@ namespace dsp
 struct FFT::Instance
 {
     virtual ~Instance() = default;
-    virtual int getEngineId() const noexcept = 0;
+    virtual int getEngineID() const noexcept = 0;
     virtual void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept = 0;
     virtual void performRealOnlyForwardTransform (float*, bool) const noexcept = 0;
     virtual void performRealOnlyInverseTransform (float*) const noexcept = 0;
@@ -107,7 +107,7 @@ struct FFTFallback  : public FFT::Instance
         size = 1 << order;
     }
 
-    int getEngineId() const noexcept override {
+    int getEngineID() const noexcept override {
         return static_cast<int>(ENGINE_TYPE::FALLBACK);
     }
 
@@ -473,7 +473,7 @@ struct AppleFFT  : public FFT::Instance
         }
     }
 
-    int getEngineId() const noexcept override {
+    int getEngineID() const noexcept override {
         return static_cast<int>(ENGINE_TYPE::APPLE_VDSP);
     }
 
@@ -690,7 +690,7 @@ struct FFTWImpl  : public FFT::Instance
         fftw.destroy_fftw (c2r);
     }
 
-    int getEngineId() const noexcept override {
+    int getEngineID() const noexcept override {
         return static_cast<int>(ENGINE_TYPE::FFTW);
     }
 
@@ -800,7 +800,7 @@ struct IntelFFT  : public FFT::Instance
         DftiFreeDescriptor (&c2r);
     }
 
-    int getEngineId() const noexcept override {
+    int getEngineID() const noexcept override {
         return static_cast<int>(ENGINE_TYPE::MKL);
     }
 
@@ -861,7 +861,7 @@ public:
         return {};
     }
 
-    int getEngineId() const noexcept override {
+    int getEngineID() const noexcept override {
         return static_cast<int>(ENGINE_TYPE::IPP);
     }
 
@@ -1079,7 +1079,7 @@ FFT& FFT::operator= (FFT&&) noexcept = default;
 FFT::~FFT() = default;
 
 int FFT::getEngineID() {
-    return engine->getEngineId();
+    return engine->getEngineID();
 }
 
 void FFT::perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept

@@ -984,7 +984,8 @@ FFT::EngineImpl<IntelPerformancePrimitivesFFT> intelPerformancePrimitivesFFT;
 class PrettyFastFFT : public FFT::Instance
 {
 public:
-    static constexpr auto priority = 7;
+    // We REALLY want to use PFFFT if specified..
+    static constexpr auto priority = 12;
     static constexpr const char* name = "PFFFT";
 
     static PrettyFastFFT* create (const int order)

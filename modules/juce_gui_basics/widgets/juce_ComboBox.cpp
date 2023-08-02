@@ -521,6 +521,10 @@ static void comboBoxPopupMenuFinishedCallback (int result, ComboBox* combo)
 
 void ComboBox::showPopup()
 {
+    if(onOpen != nullptr) {
+        onOpen();
+    }
+
     if (! menuActive)
         menuActive = true;
 

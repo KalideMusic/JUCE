@@ -70,7 +70,7 @@ float AudioParameterBool::getValue() const { return value; }
  * value = newValue; valueChanged (get()); } */
 // Syl: Normalise on setValue call
 void AudioParameterBool::setValue(float newValue) {
-  value = newValue >= 0.5f;
+  /* value = newValue >= 0.5f; */
   valueChanged(get());
 }
 float AudioParameterBool::getDefaultValue() const { return valueDefault; }

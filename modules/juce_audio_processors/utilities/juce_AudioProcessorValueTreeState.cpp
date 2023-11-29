@@ -98,8 +98,8 @@ public:
 
   void setDenormalisedValue(float value) {
     // Syl - bypass this check, to not bail out if you get non 0 / non 1 values
-    if (value == unnormalisedValue)
-      return;
+    /*     if (value == unnormalisedValue)
+          return; */
 
     setNormalisedValue(normalise(value));
   }

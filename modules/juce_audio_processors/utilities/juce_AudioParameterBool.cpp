@@ -72,25 +72,26 @@ float AudioParameterBool::getValue() const { return value; }
 void AudioParameterBool::setValue(float newValue) {
   value = newValue >= 0.5f;
   valueChanged(get());
-  float AudioParameterBool::getDefaultValue() const { return valueDefault; }
-  int AudioParameterBool::getNumSteps() const { return 2; }
-  bool AudioParameterBool::isDiscrete() const { return true; }
-  bool AudioParameterBool::isBoolean() const { return true; }
-  void AudioParameterBool::valueChanged(bool) {}
+}
+float AudioParameterBool::getDefaultValue() const { return valueDefault; }
+int AudioParameterBool::getNumSteps() const { return 2; }
+bool AudioParameterBool::isDiscrete() const { return true; }
+bool AudioParameterBool::isBoolean() const { return true; }
+void AudioParameterBool::valueChanged(bool) {}
 
-  float AudioParameterBool::getValueForText(const String &text) const {
-    return boolFromStringFunction(text) ? 1.0f : 0.0f;
-  }
+float AudioParameterBool::getValueForText(const String &text) const {
+  return boolFromStringFunction(text) ? 1.0f : 0.0f;
+}
 
-  String AudioParameterBool::getText(float v, int maximumLength) const {
-    return stringFromBoolFunction(v >= 0.5f, maximumLength);
-  }
+String AudioParameterBool::getText(float v, int maximumLength) const {
+  return stringFromBoolFunction(v >= 0.5f, maximumLength);
+}
 
-  AudioParameterBool &AudioParameterBool::operator=(bool newValue) {
-    if (get() != newValue)
-      setValueNotifyingHost(newValue ? 1.0f : 0.0f);
+AudioParameterBool &AudioParameterBool::operator=(bool newValue) {
+  if (get() != newValue)
+    setValueNotifyingHost(newValue ? 1.0f : 0.0f);
 
-    return *this;
-  }
+  return *this;
+}
 
 } // namespace juce

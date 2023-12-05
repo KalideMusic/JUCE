@@ -106,8 +106,7 @@ namespace juce {
         }
 
         template <typename SampleType, typename InterpolationType>
-        SampleType DelayLine<SampleType, InterpolationType>::popSample(
-            int channel, SampleType delayInSamples, bool updateReadPointer) {
+        SampleType DelayLine<SampleType, InterpolationType>::popSample(int channel, SampleType delayInSamples, bool updateReadPointer) {
             if (delayInSamples >= 0)
                 setDelay(delayInSamples);
 
@@ -118,6 +117,17 @@ namespace juce {
                     (readPos[(size_t)channel] + totalSize - 1) % totalSize;
 
             return result;
+        }
+
+        template <typename SampleType, typename InterpolationType>
+        SampleType DelayLine<SampleType, InterpolationType>::popSampleAndUpdate(int channel, SampleType delayInSamples) noexcept {
+            const auto szChannel = static_cast<size_t>(channel);
+            if (delayInSamples >= 0) {
+                setDelay(delayInSamples);
+            }
+            const auto res = interpolateSample(channel);
+            readPos[szChannel] = (readPos[szChannel] + totalSize - 1) % totalSize;
+            return res;
         }
 
         //==============================================================================

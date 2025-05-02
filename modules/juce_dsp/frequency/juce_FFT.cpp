@@ -35,9 +35,19 @@
 namespace juce::dsp
 {
 
+    enum class ENGINE_TYPE {
+        FALLBACK,
+        APPLE_VDSP,
+        FFTW,
+        MKL,
+        IPP,
+        PFFFT
+    };
+
 struct FFT::Instance
 {
     virtual ~Instance() = default;
+    virtual int getEngineID() const noexcept = 0;
     virtual void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept = 0;
     virtual void performRealOnlyForwardTransform (float*, bool) const noexcept = 0;
     virtual void performRealOnlyInverseTransform (float*) const noexcept = 0;
@@ -102,6 +112,10 @@ struct FFTFallback final : public FFT::Instance
         configInverse.reset (new FFTConfig (1 << order, true));
 
         size = 1 << order;
+    }
+
+    int getEngineID() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::FALLBACK);
     }
 
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
@@ -466,6 +480,10 @@ struct AppleFFT final : public FFT::Instance
         }
     }
 
+    int getEngineID() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::APPLE_VDSP);
+    }
+
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
     {
         auto size = (1 << order);
@@ -679,6 +697,10 @@ struct FFTWImpl  : public FFT::Instance
         fftw.destroy_fftw (c2r);
     }
 
+    int getEngineID() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::FFTW);
+    }
+
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
     {
         if (inverse)
@@ -785,6 +807,10 @@ struct IntelFFT final : public FFT::Instance
         DftiFreeDescriptor (&c2r);
     }
 
+    int getEngineID() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::MKL);
+    }
+
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
     {
         if (inverse)
@@ -840,6 +866,10 @@ public:
             return new IntelPerformancePrimitivesFFT (std::move (complexContext), std::move (realContext), order);
 
         return {};
+    }
+
+    int getEngineID() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::IPP);
     }
 
     void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
@@ -956,6 +986,92 @@ private:
 FFT::EngineImpl<IntelPerformancePrimitivesFFT> intelPerformancePrimitivesFFT;
 #endif
 
+#if JUCE_USE_PFFFT
+#include <pffft.h>
+class PrettyFastFFT : public FFT::Instance
+{
+public:
+    // We REALLY want to use PFFFT if specified..
+    static constexpr auto priority = 12;
+    static constexpr const char* name = "PFFFT";
+
+    static PrettyFastFFT* create (const int order)
+    {
+        if (order < 5)
+        {
+            // Not supported according to PFFFT's docs:
+            //
+            // > supports only transforms for inputs of length N of the form
+            // > N=(2^a)*(3^b)*(5^c), a >= 5, b >=0, c >= 0
+            return nullptr;
+        }
+        return new PrettyFastFFT (order);
+    }
+
+    int getEngineID() const noexcept override {
+        return static_cast<int>(ENGINE_TYPE::PFFFT);
+    }
+
+    void perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept override
+    {
+        pffft_transform_ordered (setupComp, (const float*) input, (float*) output, workBuf, inverse ? PFFFT_BACKWARD : PFFFT_FORWARD);
+        if (inverse)
+            FloatVectorOperations::multiply ((float*) output, 1.0f / float (1 << order), 1 << (order + 1));
+    }
+
+    void performRealOnlyForwardTransform (float* inoutData, bool ignoreNegativeFreqs) const noexcept override
+    {
+        pffft_transform_ordered (setupReal, inoutData, inoutData, workBuf, PFFFT_FORWARD);
+        const int nyquist = 1 << (order - 1);
+        inoutData[2 * nyquist] = inoutData[1];
+        inoutData[2 * nyquist + 1] = 0.0f;
+        inoutData[1] = 0.0f;
+        if (! ignoreNegativeFreqs)
+        {
+            // Silly anti-feature to produce redundant negative freqs!
+            auto out = (Complex<float>*) inoutData;
+            for (int i = 1; i < nyquist; ++i)
+                out[nyquist + i] = std::conj (out[nyquist - i]);
+        }
+    }
+
+    void performRealOnlyInverseTransform (float* inoutData) const noexcept override
+    {
+        inoutData[1] = inoutData[1 << order];
+        pffft_transform_ordered (setupReal, inoutData, inoutData, workBuf, PFFFT_BACKWARD);
+        FloatVectorOperations::multiply (inoutData, 1.0f / float (1 << order), 1 << order);
+    }
+
+    ~PrettyFastFFT() override
+    {
+        pffft_destroy_setup (setupReal);
+        pffft_destroy_setup (setupComp);
+        pffft_aligned_free (workBuf);
+    }
+
+private:
+    PrettyFastFFT (int order_) : order (order_)
+    {
+        setupReal = pffft_new_setup (1 << order, PFFFT_REAL);
+        jassert (setupReal != nullptr);
+
+        setupComp = pffft_new_setup (1 << order, PFFFT_COMPLEX);
+        jassert (setupComp != nullptr);
+
+        workBuf = (float*) pffft_aligned_malloc (sizeof (float) << (order + 1));
+        jassert (workBuf != nullptr);
+    }
+
+    PFFFT_Setup* setupReal;
+    PFFFT_Setup* setupComp;
+    float* workBuf;
+    int order;
+};
+
+FFT::EngineImpl<PrettyFastFFT> prettyFastFft;
+#endif
+
+
 //==============================================================================
 //==============================================================================
 FFT::FFT (int order)
@@ -969,6 +1085,10 @@ FFT::FFT (FFT&&) noexcept = default;
 FFT& FFT::operator= (FFT&&) noexcept = default;
 
 FFT::~FFT() = default;
+
+int FFT::getEngineID() {
+    return engine->getEngineID();
+}
 
 void FFT::perform (const Complex<float>* input, Complex<float>* output, bool inverse) const noexcept
 {

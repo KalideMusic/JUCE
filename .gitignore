@@ -1,4 +1,5 @@
 ._*
+build
 *.mode1v3
 *.pbxuser
 *.perspectivev3
@@ -63,6 +64,8 @@ extras/Projucer/JUCECompileEngine.dylib
 
 .vscode
 /build
+**/build 
+
 
 CMakeUserPresets.json
 .editorconfig

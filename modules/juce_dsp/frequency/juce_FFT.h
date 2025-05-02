@@ -66,6 +66,8 @@ public:
     /** Destructor. */
     ~FFT();
 
+    int getEngineID();
+
     //==============================================================================
     /** Performs an out-of-place FFT, either forward or inverse.
         The arrays must contain at least getSize() elements.

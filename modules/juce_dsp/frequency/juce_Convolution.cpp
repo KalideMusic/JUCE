@@ -907,6 +907,17 @@ public:
     // state (eventually), even if the message queue fills up.
     void postPendingCommand()
     {
+        // [KalideMusic] pendingCommand is written by callLater() on whatever thread
+        // requested the IR load, while the audio thread calls this at the top of
+        // every processSamples() — unsynchronized in stock JUCE (data race: a
+        // mid-assignment read here can push a half-constructed command). The audio
+        // side must never block, so try-lock: on contention just skip — we run
+        // again next block, and callLater() also retries via its own call here.
+        const SpinLock::ScopedTryLockType lock (pendingCommandLock);
+
+        if (! lock.isLocked())
+            return;
+
         if (pendingCommand == nullptr)
             return;
 
@@ -920,13 +931,20 @@ private:
     template <typename Fn>
     void callLater (Fn&& fn)
     {
-        // If there was already a pending command (because the queue was full) we'll end up deleting it here.
-        // Not much we can do about that!
-        pendingCommand = [weak = weakFromThis(), callback = std::forward<Fn> (fn)]() mutable
         {
-            if (auto t = weak.lock())
-                callback (t->factory);
-        };
+            // [KalideMusic] Serialize against the audio thread's postPendingCommand()
+            // (try-lock there, so this full lock is held only for the assignment and
+            // never makes the audio thread wait more than one failed try).
+            const SpinLock::ScopedLockType lock (pendingCommandLock);
+
+            // If there was already a pending command (because the queue was full) we'll end up deleting it here.
+            // Not much we can do about that!
+            pendingCommand = [weak = weakFromThis(), callback = std::forward<Fn> (fn)]() mutable
+            {
+                if (auto t = weak.lock())
+                    callback (t->factory);
+            };
+        }
 
         postPendingCommand();
     }
@@ -936,6 +954,7 @@ private:
     BackgroundMessageQueue& messageQueue;
     ConvolutionEngineFactory factory;
     BackgroundMessageQueue::IncomingCommand pendingCommand;
+    SpinLock pendingCommandLock;   // [KalideMusic] guards pendingCommand (see postPendingCommand)
 };
 
 class CrossoverMixer
